@@ -363,111 +363,135 @@ function createOverlay(pricePerSqm, medianPrice, suburb, errorMessage = null) {
   
   // Try multiple places to insert the overlay
   const insertOverlay = () => {
-    // First try: Look for the "Price guide details" link and position the overlay next to it
-    const priceGuideLinks = Array.from(document.querySelectorAll('a')).filter(el => 
-      el.textContent && el.textContent.trim() === 'Price guide details'
-    );
+    // First try: Look for the main property price element and position directly below it
+    const priceElements = [
+      document.querySelector('[data-testid="listing-details__price"]'),
+      ...Array.from(document.querySelectorAll('*')).filter(el => {
+        // Look for elements that contain a dollar sign and are likely to be the main price
+        // This helps catch prices like $6,550,000 with proper formatting
+        if (!el.textContent) return false;
+        const text = el.textContent.trim();
+        return /^\$[0-9,]+$/.test(text) || /^\$[0-9,]+,[0-9]{3}$/.test(text);
+      })
+    ].filter(Boolean); // Remove null/undefined elements
     
-    if (priceGuideLinks.length > 0) {
-      console.log('Found Price guide details link, positioning overlay next to it');
-      const priceGuideLink = priceGuideLinks[0];
+    for (const priceElement of priceElements) {
+      console.log('Found price element, positioning overlay below it:', priceElement.textContent);
       
-      // Find the parent container of the price guide link
-      let parentContainer = priceGuideLink.parentNode;
-      
-      // Create a container to hold both the price guide link and our overlay
-      const container = document.createElement('div');
-      container.style.display = 'flex';
-      container.style.flexDirection = 'row';
-      container.style.alignItems = 'center';
-      container.style.gap = '20px';
-      container.style.marginTop = '10px';
-      container.style.marginBottom = '10px';
-      
-      // Clone the price guide link to keep it in the DOM
-      const linkClone = priceGuideLink.cloneNode(true);
-      
-      // Add the link and overlay to our container
-      container.appendChild(linkClone);
-      container.appendChild(overlay);
-      
-      // Replace the original link with our container
+      // Find the parent container to position our overlay properly
+      let parentContainer = priceElement.parentNode;
       if (parentContainer) {
-        parentContainer.replaceChild(container, priceGuideLink);
+        // Create a wrapper for proper positioning
+        const wrapper = document.createElement('div');
+        wrapper.style.marginTop = '10px';
+        wrapper.style.marginBottom = '15px';
+        wrapper.style.maxWidth = priceElement.offsetWidth + 'px';
+        wrapper.appendChild(overlay);
+        
+        // Insert the overlay directly after the price element
+        parentContainer.insertBefore(wrapper, priceElement.nextSibling);
         return true;
       }
     }
     
-    // Second try: Look for any element containing "Price guide details" text
+    // Second try: Look for price guide details as a fallback
     const priceGuideElements = Array.from(document.querySelectorAll('*')).filter(el => 
-      el.textContent && el.textContent.trim() === 'Price guide details'
+      el.textContent && el.textContent.includes('Price guide details')
     );
     
     if (priceGuideElements.length > 0) {
-      console.log('Found Price guide details element, positioning overlay next to it');
+      console.log('Found Price guide details element as fallback');
       const priceGuideElement = priceGuideElements[0];
       
       // Find the parent container
       let parentContainer = priceGuideElement.parentNode;
       
-      // Create a flex container for horizontal layout
-      const container = document.createElement('div');
-      container.style.display = 'flex';
-      container.style.flexDirection = 'row';
-      container.style.alignItems = 'center';
-      container.style.gap = '20px';
-      container.style.marginTop = '10px';
-      container.style.marginBottom = '10px';
+      // Go up a few levels to find the main price container
+      for (let i = 0; i < 3; i++) {
+        if (parentContainer && parentContainer.parentNode) {
+          parentContainer = parentContainer.parentNode;
+        }
+      }
       
-      // Clone the price guide element
-      const elementClone = priceGuideElement.cloneNode(true);
-      
-      // Add both elements to the container
-      container.appendChild(elementClone);
-      container.appendChild(overlay);
-      
-      // Replace the original element with our container
       if (parentContainer) {
-        parentContainer.replaceChild(container, priceGuideElement);
+        // Create a wrapper for proper positioning
+        const wrapper = document.createElement('div');
+        wrapper.style.marginTop = '10px';
+        wrapper.style.marginBottom = '15px';
+        wrapper.appendChild(overlay);
+        
+        // Insert at the beginning of this container
+        parentContainer.insertBefore(wrapper, parentContainer.firstChild);
         return true;
       }
     }
     
-    // Fallback: Try to find the address element (h1) and insert after it
-    const addressElement = document.querySelector('h1');
-    if (addressElement) {
-      // Create a container for better positioning
-      const container = document.createElement('div');
-      container.style.display = 'flex';
-      container.style.flexDirection = 'row';
-      container.style.justifyContent = 'flex-start';
-      container.style.alignItems = 'flex-start';
-      container.style.gap = '20px';
-      container.style.marginTop = '10px';
-      container.style.marginBottom = '10px';
+    // Third try: Look for any price-like elements (e.g., large numbers with $ sign)
+    const allElements = Array.from(document.querySelectorAll('*'));
+    const potentialPriceElements = allElements.filter(el => {
+      if (!el.textContent) return false;
+      const text = el.textContent.trim();
+      // Look for text that looks like a price (e.g., $6,550,000)
+      return /\$[0-9,]+/.test(text) && text.length > 8 && text.length < 15;
+    });
+    
+    // Sort by font size (descending) to find the most prominent price
+    potentialPriceElements.sort((a, b) => {
+      const aStyle = window.getComputedStyle(a);
+      const bStyle = window.getComputedStyle(b);
+      const aSize = parseInt(aStyle.fontSize) || 0;
+      const bSize = parseInt(bStyle.fontSize) || 0;
+      return bSize - aSize;
+    });
+    
+    if (potentialPriceElements.length > 0) {
+      console.log('Found potential price element by text pattern:', potentialPriceElements[0].textContent);
+      const priceElement = potentialPriceElements[0];
       
-      // Find the price element to position next to it
-      const priceElement = document.querySelector('[data-testid="listing-details__price"]');
-      if (priceElement) {
-        // Clone the price element to place in our container
-        const priceClone = priceElement.cloneNode(true);
-        container.appendChild(priceClone);
-        container.appendChild(overlay);
+      // Create a wrapper div for proper positioning
+      const wrapper = document.createElement('div');
+      wrapper.style.marginTop = '10px';
+      wrapper.style.marginBottom = '15px';
+      wrapper.style.maxWidth = priceElement.offsetWidth + 'px';
+      wrapper.appendChild(overlay);
+      
+      // Insert directly after the price element
+      if (priceElement.parentNode) {
+        priceElement.parentNode.insertBefore(wrapper, priceElement.nextSibling);
+        return true;
+      }
+    }
+    
+    // Fourth try: Find the address element (h1) and look for price nearby
+    const addressElement = document.querySelector('h1');
+    if (addressElement && addressElement.parentNode) {
+      console.log('Using address element as reference point');
+      
+      // Look for price elements near the address
+      const siblings = Array.from(addressElement.parentNode.children);
+      const priceIndex = siblings.findIndex(el => {
+        return el.textContent && /\$[0-9,]+/.test(el.textContent.trim());
+      });
+      
+      if (priceIndex !== -1) {
+        // Found a price element, insert after it
+        const priceElement = siblings[priceIndex];
+        const wrapper = document.createElement('div');
+        wrapper.style.marginTop = '10px';
+        wrapper.style.marginBottom = '15px';
+        wrapper.appendChild(overlay);
         
-        // Hide the original price element
-        priceElement.style.display = 'none';
-        
-        // Insert our container after the address
-        if (addressElement.parentNode) {
-          addressElement.parentNode.insertBefore(container, addressElement.nextSibling);
-          return true;
-        }
+        addressElement.parentNode.insertBefore(wrapper, priceElement.nextSibling);
+        return true;
       } else {
-        // If no price element, just insert the overlay after the address
-        if (addressElement.parentNode) {
-          addressElement.parentNode.insertBefore(overlay, addressElement.nextSibling);
-          return true;
-        }
+        // No price found, insert after address as fallback
+        const wrapper = document.createElement('div');
+        wrapper.style.marginTop = '15px';
+        wrapper.style.marginBottom = '15px';
+        wrapper.appendChild(overlay);
+        
+        addressElement.parentNode.insertBefore(wrapper, addressElement.nextSibling);
+        return true;
       }
     }
     
