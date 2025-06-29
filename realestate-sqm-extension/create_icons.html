@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Generate Extension Icons</title>
+</head>
+<body>
+  <canvas id="icon48" width="48" height="48"></canvas>
+  <canvas id="icon128" width="128" height="128"></canvas>
+  
+  <script>
+    // Function to draw icon and convert to data URL
+    function createIcon(canvasId, size, callback) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext('2d');
+      
+      // Draw background
+      ctx.fillStyle = '#4285f4';
+      ctx.beginPath();
+      ctx.roundRect(0, 0, size, size, size/6);
+      ctx.fill();
+      
+      // Draw text
+      ctx.fillStyle = 'white';
+      ctx.font = `bold ${size/2}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('$/m²', size/2, size/2);
+      
+      // Convert to data URL
+      const dataUrl = canvas.toDataURL('image/png');
+      callback(dataUrl);
+    }
+    
+    // Create icons and log data URLs
+    createIcon('icon48', 48, dataUrl => {
+      console.log('Icon 48px:', dataUrl);
+    });
+    
+    createIcon('icon128', 128, dataUrl => {
+      console.log('Icon 128px:', dataUrl);
+    });
+  </script>
+</body>
+</html>
