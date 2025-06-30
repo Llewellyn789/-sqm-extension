@@ -297,27 +297,6 @@ function extractPrice() {
       return (lowerPrice + upperPrice) / 2;
     }
     
-    // Handle price with 'k' suffix (e.g., $650k)
-    if (priceText.toLowerCase().includes('k')) {
-      const match = priceText.match(/\$([0-9,.]+)k/i);
-      if (match && match[1]) {
-        const price = parseFloat(match[1].replace(/,/g, '')) * 1000;
-        console.log('Parsed price with k suffix:', price);
-        return price;
-      }
-    }
-    
-    // Handle price with 'm' suffix (e.g., $1.2m)
-    if (priceText.toLowerCase().includes('m')) {
-      const match = priceText.match(/\$([0-9,.]+)m/i);
-      if (match && match[1]) {
-        const price = parseFloat(match[1].replace(/,/g, '')) * 1000000;
-        console.log('Parsed price with m suffix:', price);
-        return price;
-      }
-    }
-    
-    // Handle standard price format
     const price = parseFloat(priceText.replace(/[^0-9.]/g, ''));
     console.log('Parsed single price:', price);
     return price;
@@ -391,21 +370,14 @@ function extractLandSize() {
     // First look for elements that ONLY contain the land size (higher confidence)
     const exactLandSizeMatches = Array.from(document.querySelectorAll('*')).filter(el => {
       if (!el || !el.textContent) return false;
-      // Look for elements that might contain just the number and m² symbol
-      return el.textContent.trim().match(/^\d+m\u00b2$/) || 
-             el.textContent.trim().match(/^\d+\s*m\u00b2$/) ||
-             el.textContent.trim().match(/^[0-9,]+\s*m²$/) || 
-             el.textContent.trim().match(/^\d+m²$/);
+      const text = el.textContent.trim();
+      return text.match(/^[0-9,]+\s*m²$/) || text.match(/^\d+m²$/);
     });
     
     if (exactLandSizeMatches.length > 0) {
       const text = exactLandSizeMatches[0].textContent.trim();
       console.log('Found exact land size match:', text);
-      // Try multiple regex patterns to match different formats
-      const match = text.match(/([0-9,]+)\s*m²/) || 
-                   text.match(/(\d+)\s*m\u00b2/) || 
-                   text.match(/(\d+)m\u00b2/) || 
-                   text.match(/(\d+)m²/);
+      const match = text.match(/([0-9,]+)\s*m²/);
       if (match && match[1]) {
         const size = parseFloat(match[1].replace(/,/g, ''));
         console.log('Parsed exact land size:', size);
@@ -492,115 +464,79 @@ function extractLandSize() {
   console.log('Land size not found');
   return null;
 }
+
+// Function to extract suburb name from the listing title
 function extractSuburb() {
   console.log('Extracting suburb...');
   
+  // Try to get from the address in the page title
   try {
-    // Method 1: Try to extract from the title
     const titleElement = document.querySelector('h1');
     if (titleElement && titleElement.textContent) {
       const titleText = titleElement.textContent.trim();
-      console.log('Found title:', titleText);
+      console.log('Title text:', titleText);
       
-      // Look for patterns like "123 Main St, Suburb, VIC 3000"
-      const commaMatch = titleText.match(/,\s*([^,]+),\s*[A-Z]{2,3}\s*\d{4}/);
-      if (commaMatch && commaMatch[1]) {
-        console.log('Extracted suburb from title comma pattern:', commaMatch[1]);
-        return commaMatch[1].trim();
-      }
-      
-      // Alternative pattern: "123 Main St, Suburb VIC 3000"
-      const spaceMatch = titleText.match(/,\s*([^,]+)\s+[A-Z]{2,3}\s*\d{4}/);
-      if (spaceMatch && spaceMatch[1]) {
-        console.log('Extracted suburb from title space pattern:', spaceMatch[1]);
-        return spaceMatch[1].trim();
-      }
-      
-      // Try to extract just the suburb and state pattern: "Suburb, VIC"
-      const suburbStateMatch = titleText.match(/,\s*([^,0-9]+),\s*[A-Z]{2,3}/);
-      if (suburbStateMatch && suburbStateMatch[1]) {
-        console.log('Extracted suburb from suburb-state pattern:', suburbStateMatch[1]);
-        return suburbStateMatch[1].trim();
+      // Format: "123 Main St, Suburb, State 1234"
+      const parts = titleText.split(',');
+      if (parts && parts.length >= 2) {
+        const suburb = parts[parts.length - 2].trim();
+        console.log('Extracted suburb from title:', suburb);
+        return suburb;
       }
     }
-    
-    // Method 2: Try to extract from the URL
-    const urlMatch = window.location.pathname.match(/\/property-[^-]+-([^-]+)-/);
+  } catch (error) {
+    console.error('Error extracting suburb from title:', error);
+  }
+  
+  // Fallback: try to extract from URL
+  // Format: https://www.realestate.com.au/property-house-vic-suburb-12345678
+  try {
+    const urlMatch = window.location.href.match(/property-[^-]+-[^-]+-([^-]+)-\d+/);
     if (urlMatch && urlMatch[1]) {
-      const suburbFromUrl = urlMatch[1].replace(/-/g, ' ');
-      console.log('Extracted suburb from URL:', suburbFromUrl);
-      return suburbFromUrl;
+      const suburb = urlMatch[1].replace(/-/g, ' ');
+      console.log('Extracted suburb from URL:', suburb);
+      return suburb;
     }
-    
-    // Method 3: Try to extract from breadcrumbs
-    const breadcrumbs = document.querySelectorAll('nav[aria-label="Breadcrumb"] a, .breadcrumbs a, .breadcrumb a');
+  } catch (error) {
+    console.error('Error extracting suburb from URL:', error);
+  }
+  
+  // Try to extract from breadcrumbs
+  try {
+    const breadcrumbs = document.querySelectorAll('a[href*="/vic/"], a[href*="/nsw/"], a[href*="/qld/"], a[href*="/sa/"], a[href*="/wa/"], a[href*="/nt/"], a[href*="/tas/"], a[href*="/act/"]');
     if (breadcrumbs && breadcrumbs.length > 0) {
-      // Typically the second-to-last breadcrumb is the suburb
-      const suburbLink = breadcrumbs[breadcrumbs.length - 2];
-      if (suburbLink && suburbLink.textContent) {
-        console.log('Extracted suburb from breadcrumbs:', suburbLink.textContent.trim());
-        return suburbLink.textContent.trim();
+      for (const crumb of breadcrumbs) {
+        if (crumb.textContent && !crumb.textContent.includes('Back to')) {
+          console.log('Extracted suburb from breadcrumb:', crumb.textContent.trim());
+          return crumb.textContent.trim();
+        }
       }
     }
-    
-    // Method 4: Look for elements containing "Suburb" or "Location"
-    const locationLabels = Array.from(document.querySelectorAll('*')).filter(el => 
-      el.textContent && 
-      (el.textContent.trim() === 'Suburb' || 
-       el.textContent.trim() === 'Location' ||
-       el.textContent.trim().toLowerCase() === 'suburb' ||
-       el.textContent.trim().toLowerCase() === 'location')
+  } catch (error) {
+    console.error('Error extracting suburb from breadcrumbs:', error);
+  }
+  
+  // Try to find suburb in any text that looks like a location
+  try {
+    // Look for VIC, NSW, QLD, etc. followed by a postcode
+    const statePostcodeElements = Array.from(document.querySelectorAll('*')).filter(el => 
+      el.textContent && /\b(VIC|NSW|QLD|SA|WA|NT|TAS|ACT)\s+\d{4}\b/i.test(el.textContent)
     );
     
-    if (locationLabels.length > 0) {
-      const locationLabel = locationLabels[0];
-      const parent = locationLabel.parentElement;
-      
-      if (parent) {
-        // Look for sibling elements that might contain the suburb
-        const siblings = Array.from(parent.children);
-        for (const sibling of siblings) {
-          if (sibling !== locationLabel && sibling.textContent) {
-            const siblingText = sibling.textContent.trim();
-            if (siblingText && siblingText !== 'Suburb' && siblingText !== 'Location' && 
-                siblingText.toLowerCase() !== 'suburb' && siblingText.toLowerCase() !== 'location') {
-              console.log('Extracted suburb from location label sibling:', siblingText);
-              return siblingText;
-            }
-          }
-        }
-        
-        // Look in the parent's next sibling
-        const parentSibling = parent.nextElementSibling;
-        if (parentSibling && parentSibling.textContent) {
-          console.log('Extracted suburb from location label parent sibling:', parentSibling.textContent.trim());
-          return parentSibling.textContent.trim();
-        }
+    if (statePostcodeElements.length > 0) {
+      const text = statePostcodeElements[0].textContent;
+      const match = text.match(/([\w\s]+),\s*(VIC|NSW|QLD|SA|WA|NT|TAS|ACT)/i);
+      if (match && match[1]) {
+        console.log('Extracted suburb from state/postcode element:', match[1].trim());
+        return match[1].trim();
       }
     }
-    
-    // Method 5: Look for address elements that might contain the suburb
-    const addressElements = Array.from(document.querySelectorAll('[class*="address"], [class*="Address"], [class*="location"], [class*="Location"]'));
-    for (const el of addressElements) {
-      if (el.textContent) {
-        const text = el.textContent.trim();
-        // Look for VIC postcode pattern
-        const match = text.match(/([^,]+),\s*VIC\s*\d{4}/);
-        if (match && match[1]) {
-          console.log('Extracted suburb from address element:', match[1]);
-          return match[1].trim();
-        }
-      }
-    }
-    
-    console.log('Could not extract suburb using any method');
-    return "Unknown";
   } catch (error) {
     console.error('Error extracting suburb from state/postcode:', error);
   }
   
   console.log('Suburb not found');
-  return "Unknown";
+  return 'Unknown';
 }
 
 // Function to create and inject the overlay
@@ -612,122 +548,78 @@ function createOverlay(pricePerSqm, medianPrice, suburb, errorMessage = null) {
   overlay.style.border = '1px solid #e4e4e4';
   overlay.style.borderRadius = '8px';
   overlay.style.padding = '12px';
-  overlay.style.marginTop = '10px';
-  overlay.style.marginBottom = '10px';
+  overlay.style.margin = '0';
   overlay.style.fontSize = '14px';
-  overlay.style.lineHeight = '1.5';
-  overlay.style.color = '#333';
-  overlay.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-  overlay.style.maxWidth = '100%';
-  overlay.style.boxSizing = 'border-box';
+  overlay.style.lineHeight = '1.4';
+  overlay.style.boxShadow = '0 2px 4px rgba(0,0,0,0.08)';
+  overlay.style.position = 'relative';
+  overlay.style.zIndex = '100';
+  overlay.style.maxWidth = '200px';
+  overlay.style.minWidth = '180px';
   
-  // Create content based on available data
+  // Create content
+  let contentHtml = '';
+  
+  // If we have an error message, display that instead of calculations
   if (errorMessage) {
-    // Display error message
-    overlay.innerHTML = `
-      <div style="font-weight: bold; margin-bottom: 5px; color: #e74c3c;">
-        ${errorMessage}
-      </div>
-      <div style="font-size: 12px; color: #7f8c8d;">
-        Try refreshing the page or check the browser console for more details.
-      </div>
-    `;
-  } else {
-    // Format the price per square meter with commas and round to nearest dollar
-    let pricePerSqmFormatted = 'N/A';
-    if (pricePerSqm && !isNaN(pricePerSqm) && isFinite(pricePerSqm)) {
-      pricePerSqmFormatted = '$' + Math.round(pricePerSqm).toLocaleString();
-    }
-    
-    // Format the median price with commas
-    let medianPriceFormatted = 'N/A';
-    if (medianPrice && !isNaN(medianPrice) && isFinite(medianPrice)) {
-      medianPriceFormatted = '$' + Math.round(medianPrice).toLocaleString();
-    }
-    
-    // Calculate the percentage difference if both values are available
-    let percentageDiff = '';
-    let percentageClass = '';
-    
-    if (pricePerSqm && medianPrice && !isNaN(pricePerSqm) && !isNaN(medianPrice) && 
-        isFinite(pricePerSqm) && isFinite(medianPrice) && medianPrice > 0) {
-      const diff = ((pricePerSqm - medianPrice) / medianPrice) * 100;
-      const diffRounded = Math.round(diff);
-      
-      if (diffRounded > 0) {
-        percentageDiff = `+${diffRounded}%`;
-        percentageClass = 'above-median';
-      } else if (diffRounded < 0) {
-        percentageDiff = `${diffRounded}%`;
-        percentageClass = 'below-median';
-      } else {
-        percentageDiff = '0%';
-        percentageClass = 'equal-median';
-      }
-    }
-    
-    // Create the HTML content
-    overlay.innerHTML = `
-      <div style="font-weight: bold; margin-bottom: 8px; color: #2c3e50;">
-        Property Price Analysis
-      </div>
-      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-        <span>Price/SQM:</span>
-        <span style="font-weight: bold;">${pricePerSqmFormatted}</span>
-      </div>
-      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-        <span>${suburb || 'Area'} Median:</span>
-        <span style="font-weight: bold;">${medianPriceFormatted}</span>
-      </div>
+    contentHtml += `<div style="color: #666;">${errorMessage}</div>`;
+  } else if (pricePerSqm) {
+    // Format the price per square meter - round to whole number and remove decimals
+    const roundedPrice = Math.round(pricePerSqm);
+    contentHtml += `
+      <div style="font-size: 18px; font-weight: bold; color: #333; margin-bottom: 5px;">Price/SQM: $${roundedPrice.toLocaleString()}</div>
     `;
     
-    // Add percentage difference if available
-    if (percentageDiff) {
-      const diffColor = percentageClass === 'above-median' ? '#e74c3c' : 
-                        percentageClass === 'below-median' ? '#27ae60' : 
-                        '#7f8c8d';
-      
-      const diffElement = document.createElement('div');
-      diffElement.style.display = 'flex';
-      diffElement.style.justifyContent = 'space-between';
-      diffElement.style.marginTop = '5px';
-      diffElement.style.paddingTop = '5px';
-      diffElement.style.borderTop = '1px solid #eee';
-      
-      diffElement.innerHTML = `
-        <span>Compared to median:</span>
-        <span style="font-weight: bold; color: ${diffColor};">${percentageDiff}</span>
+    // Only show median comparison if we have data for this suburb
+    if (medianPrice && medianPrice > 0) {
+      const roundedMedian = Math.round(medianPrice);
+      contentHtml += `
+        <div style="color: #666; margin-bottom: 3px;">${normalizedSuburb} Median: $${roundedMedian.toLocaleString()}</div>
       `;
       
-      overlay.appendChild(diffElement);
+      // Calculate the difference from median as a percentage
+      const percentDifference = ((roundedPrice - roundedMedian) / roundedMedian) * 100;
+      const percentDifferenceAbs = Math.abs(percentDifference);
+      const isAbove = percentDifference >= 0;
+      // Round to 1 decimal place
+      const roundedPercentDiff = Math.round(percentDifferenceAbs * 10) / 10;
+      const differenceText = isAbove ? `${roundedPercentDiff}% above` : `${roundedPercentDiff}% below`;
+      const differenceColor = isAbove ? '#d12440' : '#0ea47a';
+      
+      contentHtml += `
+        <div style="color: ${differenceColor}; font-weight: 500;">${differenceText}</div>
+      `;
+    } else {
+      contentHtml += `
+        <div style="color: #888;">No median data for ${suburb || 'this suburb'}</div>
+      `;
     }
+  } else {
+    contentHtml += `
+      <div style="color: #888;">Could not calculate price per square meter</div>
+    `;
   }
   
-  // HTML content is already set above
+  overlay.innerHTML = contentHtml;
   
-  // Function to insert the overlay into the page
+  // Try multiple places to insert the overlay
   const insertOverlay = () => {
-    console.log('Attempting to insert overlay...');
+    // First try: Look for the "Price guide details" text and position below it
+    const priceGuideLinks = Array.from(document.querySelectorAll('a')).filter(el => 
+      el.textContent && el.textContent.trim() === 'Price guide details'
+    );
     
-    try {
-      // First try: Look for price guide links
-      const priceGuideLinks = document.querySelectorAll('a[href*="price-guide"]');
-      console.log('Price guide links found:', priceGuideLinks.length);
+    if (priceGuideLinks.length > 0) {
+      console.log('Found Price guide details link, positioning overlay below it');
+      const priceGuideElement = priceGuideLinks[0];
       
-      if (priceGuideLinks.length > 0) {
-        console.log('Found price guide link, positioning overlay below it');
-        const priceGuideLink = priceGuideLinks[0];
-        
-        // Find the parent container
-        let parentContainer = priceGuideLink.parentNode;
-        
-        // Go up a few levels to find the main price container
-        for (let i = 0; i < 3; i++) {
-          if (parentContainer.parentNode) {
-            parentContainer = parentContainer.parentNode;
-          }
-        }
-        
+      // Find the parent container that contains both the price guide and potentially other elements
+      let parentContainer = priceGuideElement.parentNode;
+      while (parentContainer && parentContainer.tagName !== 'DIV' && parentContainer.tagName !== 'SECTION') {
+        parentContainer = parentContainer.parentNode;
+      }
+      
+      if (parentContainer) {
         // Create a wrapper for proper positioning
         const wrapper = document.createElement('div');
         wrapper.style.marginTop = '20px'; // Increased margin to position it lower
@@ -741,76 +633,168 @@ function createOverlay(pricePerSqm, medianPrice, suburb, errorMessage = null) {
           return true;
         }
       }
+    }
+    
+    // Second try: Look for any element containing "Price guide details" text
+    const priceGuideTextElements = Array.from(document.querySelectorAll('*')).filter(el => {
+      if (!el.textContent) return false;
+      const isMatch = el.textContent.includes('Price guide details') && !el.tagName.match(/^(HTML|BODY|SCRIPT|STYLE)$/i);
+      // Exclude elements we've already checked in the first try
+      const isInPreviousSet = priceGuideLinks.some(link => link === el || link.contains(el) || el.contains(link));
+      return isMatch && !isInPreviousSet;
+    });
+    
+    if (priceGuideTextElements.length > 0) {
+      console.log('Found element with Price guide details text, positioning overlay below it');
+      const element = priceGuideTextElements[0];
       
-      // Second try: Look for the price element directly
-      const priceElements = Array.from(document.querySelectorAll('*')).filter(el => {
-        if (!el || !el.textContent) return false;
-        const text = el.textContent.trim();
-        // Match price formats like "$990,000 - $1,075,000" or "$1,200,000"
-        return /^\$[0-9,]+(\s*-\s*\$[0-9,]+)?$/.test(text);
-      });
-      
-      if (priceElements.length > 0) {
-        console.log('Found price element, positioning overlay below it:', priceElements[0].textContent);
-        const priceElement = priceElements[0];
-        
-        // Find the parent container
-        let parentContainer = priceElement.parentNode;
-        // Go up a few levels to find a good container
-        for (let i = 0; i < 3; i++) {
-          if (parentContainer && parentContainer.parentNode && parentContainer.parentNode.tagName !== 'BODY') {
-            parentContainer = parentContainer.parentNode;
-          }
-        }
-        
-        // Create a wrapper for proper positioning
-        const wrapper = document.createElement('div');
-        wrapper.style.marginTop = '15px';
-        wrapper.style.marginBottom = '15px';
-        wrapper.style.clear = 'both';
-        wrapper.appendChild(overlay);
-        
-        // Insert after the parent container
+      // Find a suitable parent container
+      let parentContainer = element;
+      for (let i = 0; i < 3; i++) {
         if (parentContainer.parentNode) {
-          parentContainer.parentNode.insertBefore(wrapper, parentContainer.nextSibling);
-          return true;
+          parentContainer = parentContainer.parentNode;
         }
       }
       
-      // Last resort: insert at the top of the page
-      console.log('No suitable insertion point found, inserting at top of page');
-      const mainContent = document.querySelector('main') || document.body;
-      if (mainContent) {
-        const wrapper = document.createElement('div');
-        wrapper.style.margin = '20px';
-        wrapper.appendChild(overlay);
-        mainContent.insertBefore(wrapper, mainContent.firstChild);
-        return true;
-      }
+      // Create a wrapper for proper positioning
+      const wrapper = document.createElement('div');
+      wrapper.style.marginTop = '20px';
+      wrapper.style.marginBottom = '15px';
+      wrapper.style.clear = 'both';
+      wrapper.appendChild(overlay);
       
-      return false;
-    } catch (error) {
-      console.error('Error inserting overlay:', error);
-      // Last resort fallback - insert at body start
-      try {
-        document.body.insertBefore(overlay, document.body.firstChild);
+      // Insert after the parent container
+      if (parentContainer.parentNode) {
+        parentContainer.parentNode.insertBefore(wrapper, parentContainer.nextSibling);
         return true;
-      } catch (e) {
-        console.error('Failed to insert overlay even with fallback:', e);
-        return false;
       }
     }
+    
+    // Second try: Look for price guide details as a fallback
+    const priceGuideElements = Array.from(document.querySelectorAll('*')).filter(el => 
+      el.textContent && el.textContent.includes('Price guide details')
+    );
+    
+    if (priceGuideElements.length > 0) {
+      console.log('Found Price guide details element as fallback');
+      const priceGuideElement = priceGuideElements[0];
+      
+      // Find the parent container
+      let parentContainer = priceGuideElement.parentNode;
+      
+      // Go up a few levels to find the main price container
+      for (let i = 0; i < 3; i++) {
+        if (parentContainer && parentContainer.parentNode) {
+          parentContainer = parentContainer.parentNode;
+        }
+      }
+      
+      if (parentContainer) {
+        // Create a wrapper for proper positioning
+        const wrapper = document.createElement('div');
+        wrapper.style.marginTop = '10px';
+        wrapper.style.marginBottom = '15px';
+        wrapper.appendChild(overlay);
+        
+        // Insert at the beginning of this container
+        parentContainer.insertBefore(wrapper, parentContainer.firstChild);
+        return true;
+      }
+    }
+    
+    // Third try: Look for "Price guide details" text in any element's content
+    // This is a more aggressive search than the previous two tries
+    const allElements = Array.from(document.querySelectorAll('*'));
+    const priceGuideContainers = allElements.filter(el => {
+      if (!el.textContent) return false;
+      return el.textContent.toLowerCase().includes('price guide') && 
+             !el.tagName.match(/^(HTML|BODY|SCRIPT|STYLE)$/i);
+    });
+    
+    if (priceGuideContainers.length > 0) {
+      console.log('Found element containing price guide text, positioning overlay below it');
+      const container = priceGuideContainers[0];
+      
+      // Find the parent container
+      let parentContainer = container;
+      // Go up a few levels to find a good container
+      for (let i = 0; i < 4; i++) {
+        if (parentContainer.parentNode && parentContainer.parentNode.tagName !== 'BODY') {
+          parentContainer = parentContainer.parentNode;
+        }
+      }
+      
+      // Create a wrapper for proper positioning
+      const wrapper = document.createElement('div');
+      wrapper.style.marginTop = '25px'; // Extra margin to position it even lower
+      wrapper.style.marginBottom = '15px';
+      wrapper.style.clear = 'both';
+      wrapper.appendChild(overlay);
+      
+      // Insert after the parent container
+      if (parentContainer.parentNode) {
+        parentContainer.parentNode.insertBefore(wrapper, parentContainer.nextSibling);
+        return true;
+      }
+    }
+    
+    // Fourth try: Look for the main price element and position below it
+    const priceElements = Array.from(document.querySelectorAll('*')).filter(el => {
+      if (!el.textContent) return false;
+      const text = el.textContent.trim();
+      // Look for text that looks like a price (e.g., $6,550,000)
+      return /^\$[0-9,]+$/.test(text) || /^\$[0-9,]+,[0-9]{3}$/.test(text);
+    });
+    
+    // Sort by font size (descending) to find the most prominent price
+    priceElements.sort((a, b) => {
+      const aStyle = window.getComputedStyle(a);
+      const bStyle = window.getComputedStyle(b);
+      const aSize = parseInt(aStyle.fontSize) || 0;
+      const bSize = parseInt(bStyle.fontSize) || 0;
+      return bSize - aSize;
+    });
+    
+    if (priceElements.length > 0) {
+      console.log('Found price element, positioning overlay below it:', priceElements[0].textContent);
+      const priceElement = priceElements[0];
+      
+      // Find the parent container
+      let parentContainer = priceElement.parentNode;
+      // Go up a few levels to find a good container
+      for (let i = 0; i < 2; i++) {
+        if (parentContainer.parentNode && parentContainer.parentNode.tagName !== 'BODY') {
+          parentContainer = parentContainer.parentNode;
+        }
+      }
+      
+      // Create a wrapper for proper positioning
+      const wrapper = document.createElement('div');
+      wrapper.style.marginTop = '30px'; // Extra margin to position it lower
+      wrapper.style.marginBottom = '15px';
+      wrapper.style.clear = 'both';
+      wrapper.appendChild(overlay);
+      
+      // Insert after the parent container
+      if (parentContainer.parentNode) {
+        parentContainer.parentNode.insertBefore(wrapper, parentContainer.nextSibling);
+        return true;
+      }
+    }
+    
+    // Last resort: insert at the top of the page
+    const firstElement = document.body.firstChild;
+    if (firstElement) {
+      document.body.insertBefore(overlay, firstElement);
+      return true;
+    }
+    
+    return false;
   };
   
   // Try to insert the overlay, and if it fails, retry after a short delay
   if (!insertOverlay()) {
-    console.log('Initial overlay insertion failed, retrying in 1 second...');
-    setTimeout(() => {
-      if (!insertOverlay()) {
-        console.log('Second overlay insertion failed, retrying in 2 seconds...');
-        setTimeout(insertOverlay, 2000);
-      }
-    }, 1000);
+    setTimeout(insertOverlay, 1000);
   }
 }
 
@@ -836,89 +820,72 @@ function analyzePricePerSquareMetre() {
     const landSize = extractLandSize();
     const suburb = extractSuburb();
     
-    console.log(`Extracted data - Price: ${price}, Land Size: ${landSize}, Suburb: ${suburb}`);
-    console.log(`Data types - Price: ${typeof price}, Land Size: ${typeof landSize}, Suburb: ${typeof suburb}`);
+    console.log('Extracted data:', { price, landSize, suburb });
     
-    // Check if we have all the required data
+    // Check if we have all the necessary data
     if (!price) {
-      console.log('Price not found, showing error overlay');
-      createOverlay(null, null, suburb, 'Could not find property price. Please check if the price is displayed on this page.');
+      console.log('Missing price data for calculation');
+      createOverlay(null, null, suburb, 'Could not extract property price');
       return;
     }
     
     if (!landSize) {
-      console.log('Land size not found, showing error overlay');
-      createOverlay(price, null, suburb, 'Could not find land size. This might not be a house listing or the land size is not specified.');
+      console.log('Missing land size data for calculation');
+      createOverlay(null, null, suburb, 'Could not extract land size');
       return;
     }
     
-    if (!suburb || suburb === 'Unknown') {
-      console.log('Suburb not found, showing error overlay');
-      createOverlay(price / landSize, null, 'Unknown', 'Could not determine the suburb. The price per square meter calculation is shown, but no median comparison is available.');
-      return;
-    }
+    // Calculate price per square metre
+    const pricePerSqm = price / landSize;
+    console.log('Calculated price per sqm:', pricePerSqm);
     
-    // Normalize suburb name for dictionary lookup
-    let normalizedSuburb = suburb.split(' ').map(word => 
-      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-    ).join(' ');
+    // Normalize suburb name for lookup
+    let normalizedSuburb = '';
+    let medianPrice = 0;
     
-    console.log(`Normalized suburb: ${normalizedSuburb}`);
-    
-    // Look up median price
-    let medianPrice = MEDIAN_PRICES_BY_SUBURB[normalizedSuburb];
-    console.log(`Initial median price lookup: ${medianPrice}`);
-    
-    // If not found, try case-insensitive lookup
-    if (!medianPrice) {
-      console.log('Median price not found with exact match, trying case-insensitive lookup');
-      const suburbLower = normalizedSuburb.toLowerCase();
+    if (suburb) {
+      normalizedSuburb = suburb.split(' ').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+      ).join(' ');
       
-      // First try exact lowercase match
-      const matchingSuburb = Object.keys(MEDIAN_PRICES_BY_SUBURB).find(key => 
-        key.toLowerCase() === suburbLower
-      );
+      // Try to find the suburb in our dictionary
+      medianPrice = MEDIAN_PRICES_BY_SUBURB[normalizedSuburb] || 0;
       
-      if (matchingSuburb) {
-        medianPrice = MEDIAN_PRICES_BY_SUBURB[matchingSuburb];
-        normalizedSuburb = matchingSuburb; // Use the correctly cased suburb name
-        console.log(`Found median price with case-insensitive lookup: ${medianPrice} for ${matchingSuburb}`);
-      } else {
-        // Try partial match if exact match fails
-        console.log('Trying partial suburb name match');
-        const partialMatch = Object.keys(MEDIAN_PRICES_BY_SUBURB).find(key => 
-          suburbLower.includes(key.toLowerCase()) || key.toLowerCase().includes(suburbLower)
+      // If not found, try without case sensitivity
+      if (medianPrice === 0) {
+        const suburbLower = normalizedSuburb.toLowerCase();
+        const matchingSuburb = Object.keys(MEDIAN_PRICES_BY_SUBURB).find(key => 
+          key.toLowerCase() === suburbLower
         );
         
-        if (partialMatch) {
-          medianPrice = MEDIAN_PRICES_BY_SUBURB[partialMatch];
-          normalizedSuburb = partialMatch;
-          console.log(`Found median price with partial match: ${medianPrice} for ${partialMatch}`);
-        } else {
-          console.log(`No median price found for ${normalizedSuburb}, even with partial matching`);
+        if (matchingSuburb) {
+          medianPrice = MEDIAN_PRICES_BY_SUBURB[matchingSuburb];
+          normalizedSuburb = matchingSuburb; // Use the correctly cased version
         }
+      }
+      
+      if (medianPrice === 0) {
+        console.log(`No median price found for suburb: ${normalizedSuburb}`);
+        console.log('Available suburbs:', Object.keys(MEDIAN_PRICES_BY_SUBURB).length);
+      } else {
+        console.log(`Found median price for ${normalizedSuburb}: $${medianPrice}/sqm`);
       }
     }
     
-    // Calculate price per square meter
-    const pricePerSqm = price / landSize;
-    console.log(`Calculated price per sqm: ${pricePerSqm}`);
+    // Create and inject the overlay
+    createOverlay(pricePerSqm, medianPrice, normalizedSuburb);
     
-    // Create and display the overlay
-    if (medianPrice) {
-      console.log(`Creating overlay with median price: ${medianPrice}`);
-      createOverlay(pricePerSqm, medianPrice, normalizedSuburb);
-    } else {
-      console.log('Creating overlay without median price (not found in database)');
-      createOverlay(pricePerSqm, null, normalizedSuburb, 'Median price data not available for this suburb.');
-    }
+    console.log('Price per square metre analysis:', {
+      price,
+      landSize,
+      suburb: normalizedSuburb,
+      pricePerSqm,
+      medianPrice
+    });
   } catch (error) {
     console.error('Error in analyzePricePerSquareMetre:', error);
-    console.error('Error stack:', error.stack);
-    createOverlay(null, null, 'Error', `An error occurred while analyzing the listing: ${error.message}`);
+    createOverlay(null, null, null, 'Error analyzing property data');
   }
-  
-  console.log('Price per square metre analysis complete');
 }
 
 // Set up a MutationObserver to detect URL changes (for SPA behavior)
