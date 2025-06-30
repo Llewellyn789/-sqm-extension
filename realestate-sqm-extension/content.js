@@ -502,7 +502,7 @@ function createOverlay(pricePerSqm, medianPrice, suburb, errorMessage = null) {
     // Format the price per square meter - round to whole number and remove decimals
     const roundedPrice = Math.round(pricePerSqm);
     contentHtml += `
-      <div style="font-size: 18px; font-weight: bold; color: #333; margin-bottom: 5px;">Price/SQM: $${roundedPrice.toLocaleString()}</div>
+      <div style="font-size: 18px; font-weight: bold; color: #333; margin-bottom: 5px;">Price/sqm: $${roundedPrice.toLocaleString()}</div>
     `;
     
     // Only show median comparison if we have data for this suburb
@@ -727,9 +727,9 @@ function createOverlay(pricePerSqm, medianPrice, suburb, errorMessage = null) {
     return false;
   };
   
-  // Try to insert the overlay, and if it fails, retry after a short delay
+  // Try to insert the overlay, and if it fails, retry after a very short delay
   if (!insertOverlay()) {
-    setTimeout(insertOverlay, 1000);
+    setTimeout(insertOverlay, 300);
   }
 }
 
@@ -737,15 +737,23 @@ function createOverlay(pricePerSqm, medianPrice, suburb, errorMessage = null) {
 function analyzePricePerSquareMetre() {
   console.log('Running price per square meter analysis...');
   
-  // Check if we're on a property page
+  // Check if we're on a property page - fast check first
   if (!window.location.href.includes('realestate.com.au/property-')) {
     console.log('Not on a property page, skipping analysis');
     return;
   }
   
-  // Check if overlay already exists to avoid duplicates
+  // Check if overlay already exists to avoid duplicates - fast check
   if (document.getElementById('sqm-price-overlay')) {
     console.log('Overlay already exists, skipping analysis');
+    return;
+  }
+  
+  // Check if the page has loaded enough content to analyze
+  // This helps avoid running analysis on partially loaded pages
+  const hasEnoughContent = document.querySelectorAll('[data-testid]').length > 5;
+  if (!hasEnoughContent) {
+    console.log('Page not loaded enough yet, will retry later');
     return;
   }
   
@@ -829,41 +837,40 @@ const observer = new MutationObserver(() => {
   if (location.href !== lastUrl) {
     lastUrl = location.href;
     console.log('URL changed to:', location.href);
-    // Wait longer for the page to fully load before analyzing
-    setTimeout(analyzePricePerSquareMetre, 5000);
+    // Run immediately after URL change with a minimal delay
+    setTimeout(analyzePricePerSquareMetre, 500);
   }
 });
 
 observer.observe(document, { subtree: true, childList: true });
 
-// Run the analysis after page load with a longer delay
-// Increase the delay to ensure all elements are loaded
-console.log('Setting up initial analysis with delay...');
-setTimeout(analyzePricePerSquareMetre, 5000);
+// Run the analysis immediately and then again after a short delay
+console.log('Setting up immediate and 1-second analysis...');
 
-// Add multiple retry mechanisms in case the first attempt fails
+// Try immediate analysis as soon as script loads
+analyzePricePerSquareMetre();
+
+// Primary analysis at exactly 1 second - our target load time
+setTimeout(analyzePricePerSquareMetre, 1000);
+
+// Quick backup retry at 2 seconds if needed
 setTimeout(() => {
   if (!document.getElementById('sqm-price-overlay')) {
-    console.log('First retry: Running analysis again after 8 second delay...');
+    console.log('Retry: Running analysis again after 2 second delay...');
     analyzePricePerSquareMetre();
   }
-}, 8000);
+}, 2000);
 
-setTimeout(() => {
-  if (!document.getElementById('sqm-price-overlay')) {
-    console.log('Second retry: Running analysis again after 12 second delay...');
-    analyzePricePerSquareMetre();
-  }
-}, 12000);
-
-// Add a DOM content loaded listener as another trigger point
+// Add event listeners for different page load states
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOMContentLoaded event fired');
-  setTimeout(analyzePricePerSquareMetre, 3000);
+  // Run immediately when DOM is ready
+  analyzePricePerSquareMetre();
 });
 
-// Add a window load listener as a final trigger point
+// Use the load event as another trigger point
 window.addEventListener('load', () => {
   console.log('Window load event fired');
-  setTimeout(analyzePricePerSquareMetre, 4000);
+  // Run immediately after full page load
+  analyzePricePerSquareMetre();
 });
