@@ -509,7 +509,7 @@ function createOverlay(pricePerSqm, medianPrice, suburb, errorMessage = null) {
     if (medianPrice && medianPrice > 0) {
       const roundedMedian = Math.round(medianPrice);
       contentHtml += `
-        <div style="color: #666; margin-bottom: 3px;">Median: $${roundedMedian.toLocaleString()}</div>
+        <div style="color: #666; margin-bottom: 3px;">${normalizedSuburb} Median: $${roundedMedian.toLocaleString()}</div>
       `;
       
       // Calculate the difference from median as a percentage
