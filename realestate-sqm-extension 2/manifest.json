@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Realestate.com.au Price per Square Metre",
+  "version": "1.0",
+  "description": "Displays price per square metre data on realestate.com.au property listings",
+  "content_scripts": [
+    {
+      "matches": ["https://www.realestate.com.au/property-*"],
+      "js": ["content.js"]
+    }
+  ],
+  "permissions": []
+}
