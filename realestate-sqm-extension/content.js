@@ -493,9 +493,7 @@ function createOverlay(pricePerSqm, medianPrice, suburb, errorMessage = null) {
   overlay.style.minWidth = '180px';
   
   // Create content
-  let contentHtml = `
-    <div style="font-weight: bold; margin-bottom: 8px; color: #333; font-size: 16px;">Price/SQM</div>
-  `;
+  let contentHtml = '';
   
   // If we have an error message, display that instead of calculations
   if (errorMessage) {
@@ -504,7 +502,7 @@ function createOverlay(pricePerSqm, medianPrice, suburb, errorMessage = null) {
     // Format the price per square meter - round to whole number and remove decimals
     const roundedPrice = Math.round(pricePerSqm);
     contentHtml += `
-      <div style="font-size: 18px; font-weight: bold; color: #333; margin-bottom: 5px;">$${roundedPrice.toLocaleString()}</div>
+      <div style="font-size: 18px; font-weight: bold; color: #333; margin-bottom: 5px;">Price/SQM: $${roundedPrice.toLocaleString()}</div>
     `;
     
     // Only show median comparison if we have data for this suburb
