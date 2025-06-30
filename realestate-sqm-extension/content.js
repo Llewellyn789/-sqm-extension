@@ -276,13 +276,24 @@ function extractPrice() {
     console.log('Raw price text:', priceText);
     
     // Handle different price formats
-    // Format: "$1,200,000–$1,300,000" or "$1,200,000-$1,300,000"
+    // Format: "$1,200,000–$1,300,000" or "$1,200,000-$1,300,000" or "$990,000 - $1,075,000"
     if (priceText.includes('–') || priceText.includes('-')) {
+      console.log('Detected price range format');
+      // Extract all numbers from the string
+      const allNumbers = priceText.match(/\$([0-9,]+)/g);
+      if (allNumbers && allNumbers.length >= 2) {
+        const lowerPrice = parseFloat(allNumbers[0].replace(/[^0-9.]/g, ''));
+        const upperPrice = parseFloat(allNumbers[1].replace(/[^0-9.]/g, ''));
+        console.log(`Parsed price range: ${lowerPrice} to ${upperPrice}, average: ${(lowerPrice + upperPrice) / 2}`);
+        return (lowerPrice + upperPrice) / 2;
+      }
+      
+      // Fallback to old method
       const separator = priceText.includes('–') ? '–' : '-';
       const prices = priceText.split(separator);
       const lowerPrice = parseFloat(prices[0].replace(/[^0-9.]/g, ''));
       const upperPrice = parseFloat(prices[1].replace(/[^0-9.]/g, ''));
-      console.log(`Parsed price range: ${lowerPrice} to ${upperPrice}, average: ${(lowerPrice + upperPrice) / 2}`);
+      console.log(`Parsed price range (fallback): ${lowerPrice} to ${upperPrice}, average: ${(lowerPrice + upperPrice) / 2}`);
       return (lowerPrice + upperPrice) / 2;
     }
     
@@ -300,9 +311,41 @@ function extractLandSize() {
   console.log('Extracting land size...');
   
   try {
-    // 1. Look for the specific format shown in the screenshot (387m²)
+    // First, look for land size in the property details section
+    // This targets the format shown in the screenshot (256m²)
+    const allElements = document.querySelectorAll('*');
+    console.log('Searching for land size in all elements...');
+    
+    // Look for elements that contain both a number and m² symbol
+    for (const element of allElements) {
+      if (element && element.textContent) {
+        const text = element.textContent.trim();
+        // Check for the format like "256m²" with no spaces
+        if (/\d+m²/.test(text)) {
+          console.log('Found potential land size (no space):', text);
+          const match = text.match(/(\d+)m²/);
+          if (match && match[1]) {
+            const size = parseFloat(match[1]);
+            console.log('Parsed land size (no space):', size);
+            return size;
+          }
+        }
+        // Check for the format with a space like "256 m²"
+        else if (text.includes('m²')) {
+          console.log('Found potential land size with space:', text);
+          const match = text.match(/([0-9,]+)\s*m²/);
+          if (match && match[1]) {
+            const size = parseFloat(match[1].replace(/,/g, ''));
+            console.log('Parsed land size with space:', size);
+            return size;
+          }
+        }
+      }
+    }
+    
+    // 1. Look for the specific format using data-testid attributes
     const landSizeElements = document.querySelectorAll('[data-testid="property-features-feature-land-size"], [data-testid="property-features__feature"]');
-    console.log('Land size elements found:', landSizeElements.length);
+    console.log('Land size elements found by data-testid:', landSizeElements.length);
     
     for (const element of landSizeElements) {
       if (element && element.textContent) {
@@ -321,14 +364,14 @@ function extractLandSize() {
     }
     
     // 2. Look for any element containing both a number and m² symbol
-    const allElements = document.querySelectorAll('*');
-    console.log('Searching through all elements for land size...');
+    // We already searched all elements above, but now we'll look for different patterns
+    console.log('Searching through all elements for land size with different patterns...');
     
     // First look for elements that ONLY contain the land size (higher confidence)
-    const exactLandSizeMatches = Array.from(allElements).filter(el => {
+    const exactLandSizeMatches = Array.from(document.querySelectorAll('*')).filter(el => {
       if (!el || !el.textContent) return false;
       const text = el.textContent.trim();
-      return text.match(/^[0-9,]+\s*m²$/);
+      return text.match(/^[0-9,]+\s*m²$/) || text.match(/^\d+m²$/);
     });
     
     if (exactLandSizeMatches.length > 0) {
@@ -343,9 +386,9 @@ function extractLandSize() {
     }
     
     // Then look for any element containing m² (lower confidence)
-    const landSizeMatches = Array.from(allElements).filter(el => {
+    const landSizeMatches = Array.from(document.querySelectorAll('*')).filter(el => {
       if (!el || !el.textContent) return false;
-      return el.textContent.trim().match(/[0-9,]+\s*m²/);
+      return el.textContent.trim().match(/[0-9,]+\s*m²/) || el.textContent.trim().match(/\d+m²/);
     });
     
     if (landSizeMatches.length > 0) {
@@ -380,8 +423,8 @@ function extractLandSize() {
     }
     
     // 4. Look for specific patterns in the page that might indicate land size
-    // This is specifically for the format in the screenshot (387m²)
-    const landSizePattern = /\b(\d{3,4})m²\b/;
+    // This is specifically for the format in the screenshot (256m²)
+    const landSizePattern = /\b(\d+)m²\b/;
     const bodyText = document.body.textContent;
     if (bodyText) {
       const bodyMatch = bodyText.match(landSizePattern);
@@ -389,6 +432,28 @@ function extractLandSize() {
         const size = parseFloat(bodyMatch[1]);
         console.log('Found land size in body text:', size);
         return size;
+      }
+    }
+    
+    // 5. Look for the format shown in the screenshot with the icon (256m²)
+    // This targets elements that might contain the land size with an icon
+    const iconElements = Array.from(document.querySelectorAll('*')).filter(el => {
+      if (!el || !el.textContent) return false;
+      // Look for elements that might contain just the number and m² symbol
+      return el.textContent.trim().match(/^\d+m\u00b2$/) || 
+             el.textContent.trim().match(/^\d+\s*m\u00b2$/);
+    });
+    
+    if (iconElements.length > 0) {
+      for (const el of iconElements) {
+        const text = el.textContent.trim();
+        console.log('Found potential land size with icon:', text);
+        const match = text.match(/(\d+)\s*m\u00b2/);
+        if (match && match[1]) {
+          const size = parseFloat(match[1]);
+          console.log('Parsed land size from icon element:', size);
+          return size;
+        }
       }
     }
     
