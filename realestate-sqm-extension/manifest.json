@@ -3,8 +3,9 @@
   "name": "REA Price/sqm",
   "version": "1.0",
   "icons": {
-    "48": "images/icon48_land.svg",
-    "128": "images/icon128_land.svg"
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
   },
   "description": "Displays price per square metre data on realestate.com.au property listings",
   "content_scripts": [

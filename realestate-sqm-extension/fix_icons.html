@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Fix Extension Icons</title>
+  <style>
+    body { font-family: Arial; max-width: 800px; margin: 0 auto; padding: 20px; }
+    canvas { border: 1px solid #ccc; margin: 10px; }
+    button { background: #e62e00; color: white; border: none; padding: 10px 20px; 
+             border-radius: 4px; cursor: pointer; margin: 10px; }
+    .steps { background: #f5f5f5; padding: 15px; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Fix Extension Icons</h1>
+  <div class="steps">
+    <h3>Steps to fix your extension:</h3>
+    <ol>
+      <li>Right-click each icon below and select "Save Image As..."</li>
+      <li>Save them as icon16.png, icon48.png, and icon128.png in your extension's images folder</li>
+      <li>Go to chrome://extensions and click the refresh button on your extension</li>
+    </ol>
+  </div>
+  
+  <div style="display: flex; justify-content: center; flex-wrap: wrap;">
+    <div style="margin: 10px;">
+      <h3>16x16</h3>
+      <canvas id="canvas16" width="16" height="16"></canvas>
+    </div>
+    <div style="margin: 10px;">
+      <h3>48x48</h3>
+      <canvas id="canvas48" width="48" height="48"></canvas>
+    </div>
+    <div style="margin: 10px;">
+      <h3>128x128</h3>
+      <canvas id="canvas128" width="128" height="128"></canvas>
+    </div>
+  </div>
+
+  <script>
+    function drawIcon(canvasId, size) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext('2d');
+      
+      // Red background
+      ctx.fillStyle = '#e62e00';
+      ctx.fillRect(0, 0, size, size);
+      
+      // Land plot
+      const margin = size * 0.15;
+      const plotSize = size - (margin * 2);
+      
+      // Plot outline
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(1, size * 0.03);
+      ctx.strokeRect(margin, margin, plotSize, plotSize);
+      
+      // House
+      const houseSize = plotSize * 0.6;
+      const houseX = (size - houseSize) / 2;
+      const houseY = (size - houseSize) / 2;
+      
+      // House roof
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(houseX, houseY + houseSize * 0.4);
+      ctx.lineTo(houseX + houseSize / 2, houseY);
+      ctx.lineTo(houseX + houseSize, houseY + houseSize * 0.4);
+      ctx.closePath();
+      ctx.fill();
+      
+      // House body
+      ctx.fillRect(
+        houseX + houseSize * 0.1, 
+        houseY + houseSize * 0.4, 
+        houseSize * 0.8, 
+        houseSize * 0.6
+      );
+      
+      // $ symbol
+      if (size >= 48) {
+        ctx.fillStyle = '#e62e00';
+        ctx.font = `bold ${size * 0.25}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('$', size / 2, size / 2 + size * 0.1);
+      }
+    }
+    
+    window.onload = function() {
+      drawIcon('canvas16', 16);
+      drawIcon('canvas48', 48);
+      drawIcon('canvas128', 128);
+    };
+  </script>
+</body>
+</html>

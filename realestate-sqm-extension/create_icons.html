@@ -1,44 +1,178 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Generate Extension Icons</title>
+  <title>Generate Land-themed Extension Icons</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1 {
+      color: #2b7de9;
+    }
+    .icon-container {
+      margin-bottom: 30px;
+    }
+    canvas {
+      border: 1px solid #ccc;
+      margin-right: 20px;
+    }
+    button {
+      background-color: #2b7de9;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .preview {
+      display: flex;
+      align-items: center;
+      margin-top: 10px;
+    }
+    .icon-data {
+      margin-left: 20px;
+    }
+  </style>
 </head>
 <body>
-  <canvas id="icon48" width="48" height="48"></canvas>
-  <canvas id="icon128" width="128" height="128"></canvas>
+  <h1>REA Price/sqm Icon Generator</h1>
+  <p>Click the buttons below to generate and download icons for the Chrome extension.</p>
+  
+  <div class="icon-container">
+    <h2>16x16 Icon (Favicon)</h2>
+    <div class="preview">
+      <canvas id="icon16" width="16" height="16"></canvas>
+      <div class="icon-data">
+        <button onclick="downloadIcon(16)">Download 16px Icon</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="icon-container">
+    <h2>48x48 Icon</h2>
+    <div class="preview">
+      <canvas id="icon48" width="48" height="48"></canvas>
+      <div class="icon-data">
+        <button onclick="downloadIcon(48)">Download 48px Icon</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="icon-container">
+    <h2>128x128 Icon</h2>
+    <div class="preview">
+      <canvas id="icon128" width="128" height="128"></canvas>
+      <div class="icon-data">
+        <button onclick="downloadIcon(128)">Download 128px Icon</button>
+      </div>
+    </div>
+  </div>
   
   <script>
-    // Function to draw icon and convert to data URL
-    function createIcon(canvasId, size, callback) {
-      const canvas = document.getElementById(canvasId);
-      const ctx = canvas.getContext('2d');
-      
-      // Draw background
-      ctx.fillStyle = '#4285f4';
+    // Function to draw the land icon
+    function drawLandIcon(ctx, size) {
+      // Background
+      ctx.fillStyle = '#2b7de9';
       ctx.beginPath();
-      ctx.roundRect(0, 0, size, size, size/6);
+      ctx.roundRect(0, 0, size, size, size * 0.125);
       ctx.fill();
       
-      // Draw text
-      ctx.fillStyle = 'white';
-      ctx.font = `bold ${size/2}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('$/m²', size/2, size/2);
+      // Calculate dimensions based on size
+      const margin = size * 0.15;
+      const plotWidth = size - (margin * 2);
+      const plotHeight = plotWidth * 0.6;
+      const plotX = margin;
+      const plotY = (size - plotHeight) / 2;
       
-      // Convert to data URL
-      const dataUrl = canvas.toDataURL('image/png');
-      callback(dataUrl);
+      // Land plot outline
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = size * 0.03;
+      ctx.strokeRect(plotX, plotY, plotWidth, plotHeight);
+      
+      // Grid lines
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = size * 0.01;
+      ctx.setLineDash([size * 0.03, size * 0.03]);
+      
+      // Vertical grid lines
+      for (let i = 1; i < 3; i++) {
+        const x = plotX + (plotWidth * i / 3);
+        ctx.beginPath();
+        ctx.moveTo(x, plotY);
+        ctx.lineTo(x, plotY + plotHeight);
+        ctx.stroke();
+      }
+      
+      // Horizontal grid lines
+      for (let i = 1; i < 2; i++) {
+        const y = plotY + (plotHeight * i / 2);
+        ctx.beginPath();
+        ctx.moveTo(plotX, y);
+        ctx.lineTo(plotX + plotWidth, y);
+        ctx.stroke();
+      }
+      
+      // Reset line dash
+      ctx.setLineDash([]);
+      
+      // House symbol
+      const houseWidth = plotWidth / 3;
+      const houseHeight = plotHeight / 2;
+      const houseX = plotX + (plotWidth / 3);
+      const houseY = plotY + (plotHeight / 4);
+      
+      // House body
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(houseX, houseY + houseHeight * 0.3, houseWidth, houseHeight * 0.7);
+      
+      // House roof
+      ctx.beginPath();
+      ctx.moveTo(houseX, houseY + houseHeight * 0.3);
+      ctx.lineTo(houseX + houseWidth / 2, houseY);
+      ctx.lineTo(houseX + houseWidth, houseY + houseHeight * 0.3);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Dollar sign
+      if (size >= 48) {
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${size * 0.12}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.fillText('$', plotX + plotWidth * 0.8, plotY + plotHeight * 0.6);
+      }
+      
+      // /sqm text at bottom
+      if (size >= 32) {
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${size * 0.11}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.fillText('/sqm', size / 2, size * 0.85);
+      }
     }
     
-    // Create icons and log data URLs
-    createIcon('icon48', 48, dataUrl => {
-      console.log('Icon 48px:', dataUrl);
-    });
+    // Draw icons when page loads
+    window.onload = function() {
+      const sizes = [16, 48, 128];
+      
+      sizes.forEach(size => {
+        const canvas = document.getElementById(`icon${size}`);
+        const ctx = canvas.getContext('2d');
+        drawLandIcon(ctx, size);
+      });
+    };
     
-    createIcon('icon128', 128, dataUrl => {
-      console.log('Icon 128px:', dataUrl);
-    });
+    // Function to download the icon
+    function downloadIcon(size) {
+      const canvas = document.getElementById(`icon${size}`);
+      const link = document.createElement('a');
+      link.download = `icon${size}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
   </script>
 </body>
 </html>
