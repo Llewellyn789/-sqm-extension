@@ -654,7 +654,7 @@ function createOverlay(pricePerSqm, medianPrice, suburb, errorMessage = null) {
       let parentContainer = container;
       // Go up a few levels to find a good container
       for (let i = 0; i < 4; i++) {
-        if (parentContainer.parentNode && parentContainer.parentNode.tagName !== 'BODY') {
+        if (parentContainer && parentContainer.parentNode) {
           parentContainer = parentContainer.parentNode;
         }
       }
@@ -698,7 +698,7 @@ function createOverlay(pricePerSqm, medianPrice, suburb, errorMessage = null) {
       let parentContainer = priceElement.parentNode;
       // Go up a few levels to find a good container
       for (let i = 0; i < 2; i++) {
-        if (parentContainer.parentNode && parentContainer.parentNode.tagName !== 'BODY') {
+        if (parentContainer && parentContainer.parentNode) {
           parentContainer = parentContainer.parentNode;
         }
       }
