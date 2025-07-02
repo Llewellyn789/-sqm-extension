@@ -861,6 +861,21 @@ setTimeout(() => {
   }
 }, 2000);
 
+// Additional retries at 3 and 4 seconds if still needed
+setTimeout(() => {
+  if (!document.getElementById('sqm-price-overlay')) {
+    console.log('Retry: Running analysis again after 3 second delay...');
+    analyzePricePerSquareMetre();
+  }
+}, 3000);
+
+setTimeout(() => {
+  if (!document.getElementById('sqm-price-overlay')) {
+    console.log('Retry: Running analysis again after 4 second delay...');
+    analyzePricePerSquareMetre();
+  }
+}, 4000);
+
 // Add event listeners for different page load states
 document.addEventListener('DOMContentLoaded', () => {
   console.log('DOMContentLoaded event fired');
