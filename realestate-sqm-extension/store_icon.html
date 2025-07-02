@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Chrome Store Icon Generator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      text-align: center;
+    }
+    canvas {
+      border: 1px solid #ccc;
+      margin: 20px;
+    }
+    .instructions {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      text-align: left;
+    }
+    button {
+      background-color: #4285f4;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 10px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Melbourne Land Valuator - Chrome Store Icon</h1>
+  
+  <div class="instructions">
+    <h3>Instructions:</h3>
+    <ol>
+      <li>The icon below is designed to meet Chrome Web Store guidelines</li>
+      <li>It has a transparent background with a subtle rounded square</li>
+      <li>Right-click the icon and select "Save Image As..."</li>
+      <li>Save it as "store_icon.png" to your Downloads folder</li>
+      <li>Use this icon when uploading to the Chrome Web Store</li>
+    </ol>
+  </div>
+  
+  <div>
+    <h2>128x128 Store Icon</h2>
+    <canvas id="storeIcon" width="128" height="128"></canvas>
+    <br>
+    <button onclick="downloadIcon()">Download Store Icon</button>
+  </div>
+  
+  <script>
+    function drawStoreIcon() {
+      const canvas = document.getElementById('storeIcon');
+      const ctx = canvas.getContext('2d');
+      const size = 128;
+      
+      // Clear canvas with transparency
+      ctx.clearRect(0, 0, size, size);
+      
+      // Draw a subtle rounded square background
+      ctx.fillStyle = '#ffb3b3'; // Light pink background
+      ctx.beginPath();
+      ctx.roundRect(0, 0, size, size, size * 0.2);
+      ctx.fill();
+      
+      // Draw a border
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.roundRect(10, 10, size - 20, size - 20, (size - 20) * 0.1);
+      ctx.stroke();
+      
+      // House silhouette (black)
+      const houseWidth = size * 0.5;
+      const houseHeight = size * 0.4;
+      const houseX = (size - houseWidth) / 2;
+      const houseY = size * 0.3;
+      
+      ctx.fillStyle = '#000000';
+      
+      // House body
+      ctx.fillRect(
+        houseX, 
+        houseY + houseHeight * 0.3, 
+        houseWidth, 
+        houseHeight * 0.7
+      );
+      
+      // House roof
+      ctx.beginPath();
+      ctx.moveTo(houseX, houseY + houseHeight * 0.3);
+      ctx.lineTo(houseX + houseWidth / 2, houseY);
+      ctx.lineTo(houseX + houseWidth, houseY + houseHeight * 0.3);
+      ctx.closePath();
+      ctx.fill();
+      
+      // Dollar sign
+      ctx.fillStyle = '#ffb3b3'; // Same as background
+      ctx.font = 'bold 40px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('$', size / 2, size / 2 + 10);
+    }
+    
+    function downloadIcon() {
+      const canvas = document.getElementById('storeIcon');
+      const link = document.createElement('a');
+      link.download = 'store_icon.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+    
+    window.onload = drawStoreIcon;
+  </script>
+</body>
+</html>
